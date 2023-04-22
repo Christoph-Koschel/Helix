@@ -2,6 +2,16 @@ export enum TokenType {
     NEWLINE = "NEWLINE",
     WHITESPACE = "WHITESPACE",
     IDENTIFIER = "IDENTIFIER",
+    EQUALS = "EQUALS",
+    DOUBLE_EQUALS = "DOUBLE_EQUALS",
+    GREATER = "GREATER",
+    DOUBLE_GREATER = "DOUBLE_GREATER",
+    GREATER_EQUALS = "GREATER_EQUALS",
+    LESS = "LESS",
+    DOUBLE_LESS = "DOUBLE_LESS",
+    LESS_EQUALS = "LESS_EQUALS",
+    EXCLAMATION = "EXCLAMATION",
+    EXCLAMATION_EQUALS = "EXCLAMATION_EQUALS",
     PLUS = "PLUS",
     MINUS = "MINUS",
     STAR = "STAR",
@@ -16,6 +26,7 @@ export enum TokenType {
     BACKSLASH = "BACKSLASH",
     DOT = "DOT",
     COLON = "COLON",
+    SEMICOLON = "SEMICOLON",
     STRING = "STRING",
     INT = "INT",
     FLOAT = "FLOAT",
@@ -120,6 +131,69 @@ export class Lexer {
         let value: any;
 
         switch (this.current) {
+            case "=":
+                if (this.peek(1) == "=") {
+                    text = "==";
+                    value = null;
+                    type = TokenType.DOUBLE_EQUALS;
+                    this.pos += 2
+                } else {
+                    text = "=";
+                    value = null;
+                    type = TokenType.EQUALS;
+                    this.pos++;
+                }
+                break;
+            case ">":
+                if (this.peek(1) == ">") {
+                    text = ">=";
+                    value = null;
+                    type = TokenType.GREATER_EQUALS;
+                    this.pos += 2
+                } else if (this.peek(1) == ">") {
+                    text = ">>";
+                    value = null;
+                    type = TokenType.DOUBLE_GREATER;
+                    this.pos += 2
+                } else {
+                    text = ">";
+                    value = null;
+                    type = TokenType.GREATER;
+                    this.pos++;
+                }
+                break;
+            case "<":
+                if (this.peek(1) == "<") {
+                    text = "<=";
+                    value = null;
+                    type = TokenType.LESS_EQUALS;
+                    this.pos += 2
+                } else if (this.peek(1) == "<") {
+                    text = "<<";
+                    value = null;
+                    type = TokenType.DOUBLE_LESS;
+                    this.pos += 2
+                } else {
+                    text = "<";
+                    value = null;
+                    type = TokenType.LESS;
+                    this.pos++;
+                }
+                break;
+
+            case "!":
+                if (this.peek(1) == "=") {
+                    text = "!=";
+                    value = null;
+                    type = TokenType.EXCLAMATION_EQUALS;
+                    this.pos += 2
+                } else {
+                    text = "!";
+                    value = null;
+                    type = TokenType.EXCLAMATION;
+                    this.pos++;
+                }
+                break;
             case "+":
                 text = "+";
                 value = null;
@@ -149,6 +223,7 @@ export class Lexer {
                     text = "&&";
                     value = null;
                     type = TokenType.DOUBLE_AND;
+                    this.pos += 2
                 } else {
                     text = "&";
                     value = null;
@@ -161,6 +236,7 @@ export class Lexer {
                     text = "||";
                     value = null;
                     type = TokenType.DOUBLE_SPLIT;
+                    this.pos += 2
                 } else {
                     text = "|";
                     value = null;
@@ -196,6 +272,12 @@ export class Lexer {
                 text = ".";
                 value = null;
                 type = TokenType.DOT;
+                this.pos++;
+                break;
+            case ";":
+                text = ";";
+                value = null;
+                type = TokenType.SEMICOLON;
                 this.pos++;
                 break;
             case ":":
