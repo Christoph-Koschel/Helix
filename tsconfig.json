@@ -1,0 +1,29 @@
+{
+    "compilerOptions": {
+        "module": "ES2022",
+        "moduleResolution": "Node",
+        "removeComments": true,
+        "target": "ES2022",
+        "jsx": "React",
+        "allowJs": false,
+        "lib": [
+            "ES2022",
+            "DOM"
+        ],
+        "paths": {
+            "@tsb/engine": [
+                "./engine/engine.d.ts"
+            ],
+            "@tsb/tsx": [
+                "./engine/tsx.d.ts"
+            ],
+            "@tsb/react": [
+                "./engine/react.d.ts"
+            ]
+        }
+    },
+    "exclude": [
+        "node_modules",
+        "out"
+    ]
+}
