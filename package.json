@@ -1,0 +1,8 @@
+{
+    "name": "helix",
+    "author": "Christoph Koschel",
+    "main": "./Helix.js",
+    "dependencies": {
+        "@types/node": "^18.15.13"
+    }
+}
