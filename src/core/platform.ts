@@ -45,7 +45,8 @@ export class Windows extends Platform {
         if (this.isAdminBox == -1) {
             try {
                 child_process.execSync("net session", {
-                    windowsHide: true
+                    windowsHide: true,
+                    stdio: "ignore"
                 });
                 this.isAdminBox = 1;
                 return false;
