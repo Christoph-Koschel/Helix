@@ -2,8 +2,20 @@ export enum TokenType {
     NEWLINE = "NEWLINE",
     WHITESPACE = "WHITESPACE",
     IDENTIFIER = "IDENTIFIER",
+    PLUS = "PLUS",
+    MINUS = "MINUS",
+    STAR = "STAR",
+    AND = "AND",
+    DOUBLE_AND = "DOUBLE_AND",
+    SPLIT = "SPLIT",
+    DOUBLE_SPLIT = "DOUBLE_SPLIT",
+    HAT = "HAT",
+    TILDE = "TILDE",
+    PERCENT = "PERCENT",
     SLASH = "SLASH",
-    POINT = "POINT",
+    BACKSLASH = "BACKSLASH",
+    DOT = "DOT",
+    COLON = "COLON",
     STRING = "STRING",
     INT = "INT",
     FLOAT = "FLOAT",
@@ -80,6 +92,14 @@ export class Lexer {
         return this.text.charAt(this.pos++);
     }
 
+    private peek(offset: number): string {
+        if (this.pos + offset >= this.text.length) {
+            return '\0';
+        }
+
+        return this.text.charAt(this.pos + offset);
+    }
+
     public lex(): Token {
         if (this.pos >= this.text.length) {
             return {
@@ -100,16 +120,88 @@ export class Lexer {
         let value: any;
 
         switch (this.current) {
+            case "+":
+                text = "+";
+                value = null;
+                type = TokenType.PLUS;
+                this.pos++;
+                break;
+            case "-":
+                text = "-";
+                value = null;
+                type = TokenType.MINUS;
+                this.pos++;
+                break;
+            case "*":
+                text = "*";
+                value = null;
+                type = TokenType.STAR;
+                this.pos++;
+                break;
+            case "%":
+                text = "/";
+                value = null;
+                type = TokenType.PERCENT;
+                this.pos++;
+                break;
+            case "&":
+                if (this.peek(1) == "&") {
+                    text = "&&";
+                    value = null;
+                    type = TokenType.DOUBLE_AND;
+                } else {
+                    text = "&";
+                    value = null;
+                    type = TokenType.AND;
+                    this.pos++;
+                }
+                break;
+            case "|":
+                if (this.peek(1) == "|") {
+                    text = "||";
+                    value = null;
+                    type = TokenType.DOUBLE_SPLIT;
+                } else {
+                    text = "|";
+                    value = null;
+                    type = TokenType.SPLIT;
+                    this.pos++;
+                }
+                break;
+            case "^":
+                text = "^";
+                value = null;
+                type = TokenType.HAT;
+                this.pos++;
+                break;
+            case "~":
+                text = "~";
+                value = null;
+                type = TokenType.TILDE;
+                this.pos++;
+                break;
             case "/":
                 text = "/";
                 value = null;
                 type = TokenType.SLASH;
                 this.pos++;
                 break;
+            case "\\":
+                text = "\\";
+                value = null;
+                type = TokenType.BACKSLASH;
+                this.pos++;
+                break;
             case ".":
                 text = ".";
                 value = null;
-                type = TokenType.POINT;
+                type = TokenType.DOT;
+                this.pos++;
+                break;
+            case ":":
+                text = ":";
+                value = null;
+                type = TokenType.COLON;
                 this.pos++;
                 break;
             case "\n":
