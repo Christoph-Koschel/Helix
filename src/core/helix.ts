@@ -1,6 +1,8 @@
 import {Color, print, println, readline} from "./stdio";
 import {Platform} from "./platform";
 import * as path from "path";
+import {Expression, Parser} from "../lang/parser";
+import {Diagnostic} from "../lang/lexer";
 
 if (process.argv.length > 2) {
     // TODO Execute script files given as a parameter
@@ -20,6 +22,15 @@ function translate_path(platform: Platform, str: string): string {
     return str;
 }
 
+function print_diagnostics(diagnostics: Diagnostic[]): void {
+    diagnostics.forEach(value => {
+        // TODO Improve output messages
+        // The diagnostic should show the line and col number from the begin of the error to the end.
+        // Also a the first line of the error-code should be outputted.
+        println(`${value.file}:(${value.pos.start}:${value.pos.end}) ${value.message}`, Color.RED);
+    });
+}
+
 async function loop() {
     const platform: Platform = Platform.get_platform();
     if (!platform) {
@@ -37,6 +48,24 @@ async function loop() {
             print("$ ");
         }
         const line = await readline();
+        const parser: Parser = new Parser("<stdin>", line);
+        parser.tokens.forEach(value => {
+            println(`${value.type} (${value.text.replace(/\n/g, "\\n").replace(/\r/g, "\\r").replace(/\t/g, "\\t")})`);
+        });
+        if (parser.diagnostics.length != 0) {
+            print_diagnostics(parser.diagnostics);
+            continue;
+        }
+        const exprs: Expression[] = parser.parse();
+        if (parser.diagnostics.length != 0) {
+            print_diagnostics(parser.diagnostics);
+            continue;
+        }
+
+        exprs.forEach(value => {
+            println(JSON.stringify(value, null, 4));
+        });
+
     }
 }
 
