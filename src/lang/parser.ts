@@ -4,7 +4,33 @@ export enum SyntaxType {
     PATH_EXPRESSION = "PATH_EXPRESSION",
     BINARY_EXPRESSION = "BINARY_EXPRESSION",
     UNARY_EXPRESSION = "UNARY_EXPRESSION",
-    LITERAL_EXPRESSION = "LITERAL_EXPRESSION"
+    LITERAL_EXPRESSION = "LITERAL_EXPRESSION",
+
+    VARIABLE_DECLARATION_STATEMENT = "VARIABLE_DECLARATION_STATEMENT"
+}
+
+export abstract class Statement {
+    public type: SyntaxType;
+
+    protected constructor(type: SyntaxType) {
+        this.type = type;
+
+    }
+}
+
+export class VariableDeclarationStatement extends Statement {
+    public typeToken: Token;
+    public equals: Token;
+    public name: Token;
+    public value: Expression;
+
+    public constructor(typeToken: Token, name: Token, equals: Token, value: Expression) {
+        super(SyntaxType.VARIABLE_DECLARATION_STATEMENT);
+        this.equals = equals;
+        this.typeToken = typeToken;
+        this.name = name;
+        this.value = value;
+    }
 }
 
 export abstract class Expression {
@@ -62,9 +88,9 @@ function get_unary_precedence(type: TokenType): number {
     switch (type) {
         case TokenType.MINUS:
         case TokenType.PLUS:
-        // case TokenType.NOT:
+        case TokenType.EXCLAMATION:
         case TokenType.TILDE:
-            return 4;
+            return 5;
     }
 
     return 0;
@@ -75,13 +101,22 @@ function get_binary_precedence(type: TokenType): number {
         case TokenType.STAR:
         case TokenType.SLASH:
         case TokenType.PERCENT:
-            return 5;
+            return 6;
         case TokenType.PLUS:
         case TokenType.MINUS:
+            return 4;
+        case TokenType.DOUBLE_EQUALS:
+        case TokenType.EXCLAMATION_EQUALS:
+        case TokenType.GREATER_EQUALS:
+        case TokenType.GREATER:
+        case TokenType.LESS_EQUALS:
+        case TokenType.LESS:
             return 3;
         case TokenType.AND:
         case TokenType.DOUBLE_AND:
             return 2;
+        case TokenType.DOUBLE_GREATER:
+        case TokenType.DOUBLE_LESS:
         case TokenType.SPLIT:
         case TokenType.DOUBLE_SPLIT:
         case TokenType.HAT:
@@ -182,7 +217,7 @@ export class Parser {
     }
 
     private match_useful(...types: TokenType[]): Token {
-        let type = this.current.type;
+        let type: TokenType = this.current.type;
         for (let t of types) {
             if (t == type) {
                 return this.next_useful;
@@ -204,24 +239,46 @@ export class Parser {
         }
     }
 
-    public parse(): Expression[] {
-        const exprs: Expression[] = [];
-        while (this.pos < this.tokens.length) {
-            if (this.current.type == TokenType.NEWLINE || this.current.type == TokenType.WHITESPACE) {
-                this.next_useful;
-            }
+    private skip_whitespace(): void {
+        while (this.current.type == TokenType.WHITESPACE) {
+            this.pos++;
+        }
+    }
 
-            if (this.current.type == TokenType.EOF) {
-                break;
-            }
+    public parse(): Statement[] {
+        return this.parse_statements();
+    }
 
-            const expr: Expression = this.parse_expr();
-            if (expr != null) {
-                exprs.push(expr);
-            }
+    private parse_statements(): Statement[] {
+        const statements: Statement[] = [];
+        while (this.current.type != TokenType.EOF) {
+            statements.push(this.parse_statement());
+            this.skip_whitespace();
+            this.match_useful(TokenType.NEWLINE, TokenType.SEMICOLON, TokenType.EOF);
         }
 
-        return exprs;
+        return statements;
+    }
+
+    private parse_statement(): Statement {
+        // TODO implement if statement
+        // TODO implement while statement
+        // TODO implement do-while statement
+        // TODO implement for statement
+
+        if (this.current.type == TokenType.IDENTIFIER) {
+            const reset: number = this.pos;
+            const type: Token = this.next_useful;
+            const name: Token = this.next_useful;
+            // @ts-ignore I Don't know what's the fucking problem of typescript is
+            if (this.current.type != TokenType.EQUALS) {
+                this.pos = reset;
+            } else {
+                const equals: Token = this.next_useful;
+                const value: Expression = this.parse_expr();
+                return new VariableDeclarationStatement(type, name, equals, value);
+            }
+        }
     }
 
     private parse_expr(): Expression {
