@@ -402,7 +402,7 @@ export class Parser {
         parts.push(this.next);
 
         while (this.current.type != TokenType.WHITESPACE) {
-            parts.push(this.match(TokenType.DOT, TokenType.SLASH, TokenType.BACKSLASH, TokenType.IDENTIFIER));
+            parts.push(this.match(TokenType.DOT, TokenType.SLASH, TokenType.BACKSLASH, TokenType.IDENTIFIER, TokenType.STRING));
         }
 
         return new PathExpression(parts);

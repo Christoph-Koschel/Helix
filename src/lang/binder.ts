@@ -1,20 +1,27 @@
 import {
     BinaryExpression,
-    Expression, LiteralExpression,
+    CallStatement,
+    Expression,
+    LiteralExpression,
     Parser,
+    PathExpression,
     Statement,
     SyntaxType,
     UnaryExpression,
+    VariableAccessExpression,
     VariableDeclarationStatement
 } from "./parser";
 import {Diagnostic, Token, TokenType} from "./lexer";
 
 export enum BoundType {
     VARIABLE_DECLARATION_STATEMENT,
+    CALL_STATEMENT,
 
     BINARY_EXPRESSION,
     UNARY_EXPRESSION,
-    LITERAL_EXPRESSION
+    LITERAL_EXPRESSION,
+    VARIABLE_ACCESS_EXPRESSION,
+    CAST_EXPRESSION
 }
 
 export enum Operation {
@@ -52,13 +59,24 @@ export abstract class BoundStatement {
 }
 
 export class BoundVariableDeclarationStatement extends BoundStatement {
-    private variable: Symbol;
-    private value: BoundExpression;
+    public variable: Symbol;
+    public value: BoundExpression;
 
     public constructor(variable: Symbol, value: BoundExpression) {
         super(BoundType.VARIABLE_DECLARATION_STATEMENT);
         this.variable = variable;
         this.value = value;
+    }
+}
+
+export class BoundCallStatement extends BoundStatement {
+    public caller: BoundExpression;
+    public parameters: BoundExpression[];
+
+    public constructor(caller: BoundExpression, parameters: BoundExpression[]) {
+        super(BoundType.CALL_STATEMENT);
+        this.caller = caller;
+        this.parameters = parameters;
     }
 }
 
@@ -109,7 +127,7 @@ export class BoundUnaryExpression extends BoundExpression {
 }
 
 export class BoundLiteralExpression extends BoundExpression {
-    private returnType: Type;
+    private readonly returnType: Type;
     public value: any;
 
     public constructor(value: any) {
@@ -131,6 +149,34 @@ export class BoundLiteralExpression extends BoundExpression {
     }
 }
 
+export class BoundVariableAccessExpression extends BoundExpression {
+    public variable: Symbol;
+
+    public constructor(variable: Symbol) {
+        super(BoundType.VARIABLE_ACCESS_EXPRESSION);
+        this.variable = variable;
+    }
+
+    get kind(): Type {
+        return this.variable.kind;
+    }
+}
+
+export class BoundCastExpression extends BoundExpression {
+    public expression: BoundExpression;
+    private readonly returnType: Type;
+
+    public constructor(expression: BoundExpression, returnType: Type) {
+        super(BoundType.CAST_EXPRESSION);
+        this.expression = expression;
+        this.returnType = returnType;
+    }
+
+    get kind(): Type {
+        return this.returnType;
+    }
+}
+
 
 export class BoundProgram {
     public statements: BoundStatement[];
@@ -141,7 +187,7 @@ export class BoundProgram {
 }
 
 export enum SymbolType {
-    VARIABLE
+    VARIABLE,
 }
 
 export type Symbol = {
@@ -307,7 +353,7 @@ export class Binder {
             case SyntaxType.VARIABLE_DECLARATION_STATEMENT:
                 return this.bindVariableDeclarationStatement(statement as VariableDeclarationStatement);
             case SyntaxType.CALL_STATEMENT:
-                break;
+                return this.bindCallStatement(statement as CallStatement);
         }
     }
 
@@ -322,6 +368,21 @@ export class Binder {
 
         this.scope.declareSymbol(symbol);
         return new BoundVariableDeclarationStatement(symbol, value);
+    }
+
+    private bindCallStatement(statement: CallStatement): BoundStatement {
+        // TODO Check for right signature
+        // This function should check the parameter count when calling native or self defined functions.
+        // Also a error must be thrown when the parameter type is not equal the argument type.
+
+        const parameters: BoundExpression[] = [];
+
+        statement.parameters.forEach(value => {
+            parameters.push(this.bindExpression(value));
+        });
+
+        const caller: BoundExpression = this.bindExpression(statement.caller, "string");
+        return new BoundCallStatement(caller, parameters);
     }
 
     private bindType(token: Token): Type {
@@ -353,10 +414,16 @@ export class Binder {
         }
 
         if (boundExpression.kind != type) {
+            if (type == "float" && boundExpression.kind == "int") {
+                return boundExpression;
+            } else if (type == "int" && boundExpression.kind == "float") {
+                return new BoundCastExpression(boundExpression, "int");
+            }
+
             this.diagnostics.push({
                 pos: expression.span,
                 file: this.filename,
-                message: `SyntaxError: Expression return '${boundExpression.type}' but required is '${type}'`
+                message: `SyntaxError: Expression returns '${boundExpression.kind}' but required is '${type}'`
             });
         }
 
@@ -366,17 +433,34 @@ export class Binder {
     private bindExpressionInternal(expression: Expression): BoundExpression {
         switch (expression.type) {
             case SyntaxType.PATH_EXPRESSION:
-                break;
+                return this.bindPathExpression(expression as PathExpression);
             case SyntaxType.BINARY_EXPRESSION:
                 return this.bindBinaryExpression(expression as BinaryExpression);
             case SyntaxType.UNARY_EXPRESSION:
                 return this.bindUnaryExpression(expression as UnaryExpression);
             case SyntaxType.LITERAL_EXPRESSION:
                 return this.bindLiteralExpression(expression as LiteralExpression);
-                break;
             case SyntaxType.VARIABLE_ACCESS_EXPRESSION:
-                break;
+                return this.bindVariableAccessExpression(expression as VariableAccessExpression);
         }
+    }
+
+    private bindPathExpression(expression: PathExpression): BoundExpression {
+        let path: string = "";
+
+        for (let part of expression.parts) {
+            if (part.type == TokenType.STRING) {
+                path += part.text;
+            } else if (part.type == TokenType.SLASH || part.type == TokenType.BACKSLASH) {
+                path += "/";
+            } else if (part.type == TokenType.IDENTIFIER) {
+                path += part.text;
+            } else if (part.type == TokenType.DOT) {
+                path += ".";
+            }
+        }
+
+        return new BoundLiteralExpression(path);
     }
 
     private bindBinaryExpression(expression: BinaryExpression): BoundExpression {
@@ -413,6 +497,20 @@ export class Binder {
 
     private bindLiteralExpression(expression: LiteralExpression): BoundExpression {
         return new BoundLiteralExpression(expression.token.value);
+    }
+
+    private bindVariableAccessExpression(expression: VariableAccessExpression): BoundExpression {
+        const name: string = "$" + expression.name.text;
+        const symbol: Symbol | null = this.scope.lookupSymbol(name, SymbolType.VARIABLE);
+        if (symbol == null) {
+            this.diagnostics.push({
+                pos: expression.span,
+                file: this.filename,
+                message: `SyntaxError: Variable '${name}' is not declared`
+            });
+        }
+
+        return new BoundVariableAccessExpression(symbol);
     }
 
     private bindOperator(token: Token): Operation {
