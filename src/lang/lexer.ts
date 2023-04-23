@@ -62,16 +62,16 @@ export function span_from(start: number, end: number): Span {
     }
 }
 
-export function isDigit(c: string): boolean {
+export function is_digit(c: string): boolean {
     return c >= '0' && c <= '9';
 
 }
 
-export function isAlpha(c: string): boolean {
+export function is_alpha(c: string): boolean {
     return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z';
 }
 
-export function isWhitespace(c: string): boolean {
+export function is_whitespace(c: string): boolean {
     return c == '\t' || c == ' ' || c == "\r";
 }
 
@@ -326,10 +326,10 @@ export class Lexer {
 
                     type = TokenType.STRING;
                     value = text.substring(1, text.length - 1);
-                } else if (isDigit(this.current)) {
+                } else if (is_digit(this.current)) {
                     let pointCounter: number = 0;
                     text = this.next;
-                    while (isDigit(this.current) || this.current == ".") {
+                    while (is_digit(this.current) || this.current == ".") {
                         if (this.current == ".") {
                             pointCounter++;
                             if (pointCounter > 1) {
@@ -347,15 +347,15 @@ export class Lexer {
                         type = TokenType.INT;
                         value = parseInt(text);
                     }
-                } else if (isAlpha(this.current)) {
+                } else if (is_alpha(this.current)) {
                     text = this.next;
-                    while (isAlpha(this.current) || this.current == "_") {
+                    while (is_alpha(this.current) || this.current == "_") {
                         text += this.next;
                     }
                     type = TokenType.IDENTIFIER;
-                } else if (isWhitespace(this.current)) {
+                } else if (is_whitespace(this.current)) {
                     text = this.next;
-                    while (isWhitespace(this.current)) {
+                    while (is_whitespace(this.current)) {
                         text += this.next;
                     }
                     type = TokenType.WHITESPACE;

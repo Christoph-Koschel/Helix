@@ -230,7 +230,7 @@ export class Parser {
         return this.tokens[this.pos++];
     }
 
-    private get next_useful(): Token {
+    private get nextUseful(): Token {
         let token: Token = this.tokens[this.pos++];
         while (this.current.type == TokenType.NEWLINE || this.current.type == TokenType.WHITESPACE) {
             this.pos++;
@@ -270,11 +270,11 @@ export class Parser {
         }
     }
 
-    private match_useful(...types: TokenType[]): Token {
+    private matchUseful(...types: TokenType[]): Token {
         let type: TokenType = this.current.type;
         for (let t of types) {
             if (t == type) {
-                return this.next_useful;
+                return this.nextUseful;
             }
         }
 
@@ -300,21 +300,21 @@ export class Parser {
     }
 
     public parse(): Statement[] {
-        return this.parse_statements();
+        return this.parseStatements();
     }
 
-    private parse_statements(): Statement[] {
+    private parseStatements(): Statement[] {
         const statements: Statement[] = [];
         while (this.current.type != TokenType.EOF) {
-            statements.push(this.parse_statement());
+            statements.push(this.parseStatement());
             this.skip_whitespace();
-            this.match_useful(TokenType.NEWLINE, TokenType.SEMICOLON, TokenType.EOF);
+            this.matchUseful(TokenType.NEWLINE, TokenType.SEMICOLON, TokenType.EOF);
         }
 
         return statements;
     }
 
-    private parse_statement(): Statement {
+    private parseStatement(): Statement {
         // TODO implement if statement
         // TODO implement while statement
         // TODO implement do-while statement
@@ -322,49 +322,49 @@ export class Parser {
 
         if (this.current.type == TokenType.IDENTIFIER) {
             const reset: number = this.pos;
-            const type: Token = this.next_useful;
-            const name: Token = this.next_useful;
+            const type: Token = this.nextUseful;
+            const name: Token = this.nextUseful;
             // @ts-ignore I Don't know what's the fucking problem of typescript is
             if (this.current.type != TokenType.EQUALS) {
                 this.pos = reset;
             } else {
-                const equals: Token = this.next_useful;
-                const value: Expression = this.parse_expression();
+                const equals: Token = this.nextUseful;
+                const value: Expression = this.parseExpression();
                 return new VariableDeclarationStatement(type, name, equals, value);
             }
         }
 
-        const caller: Expression = this.parse_expression();
+        const caller: Expression = this.parseExpression();
         this.skip_whitespace();
         const parameters: Expression[] = [];
         while (this.current.type != TokenType.NEWLINE && this.current.type != TokenType.SEMICOLON && this.current.type != TokenType.EOF) {
-            parameters.push(this.parse_expression());
+            parameters.push(this.parseExpression());
             this.skip_whitespace();
         }
         return new CallStatement(caller, parameters);
     }
 
-    private parse_expression(): Expression {
+    private parseExpression(): Expression {
         if (this.current.type == TokenType.DOT ||
             this.current.type == TokenType.IDENTIFIER && this.current.text.length == 1 && this.peek(1).type == TokenType.COLON && (this.peek(2).type == TokenType.SLASH || this.peek(2).type == TokenType.BACKSLASH) ||
             this.current.type == TokenType.SLASH ||
             this.current.type == TokenType.BACKSLASH ||
             this.current.type == TokenType.IDENTIFIER) {
-            return this.parse_path_expr();
+            return this.parsePathExpression();
         }
 
-        return this.parse_binary_expr();
+        return this.parseBinaryExpr();
     }
 
-    private parse_binary_expr(parent_precedence: number = 0): Expression {
+    private parseBinaryExpr(parent_precedence: number = 0): Expression {
         let left: Expression;
         let unaryIndex: number = get_unary_precedence(this.current.type);
         if (unaryIndex != 0 && unaryIndex >= parent_precedence) {
-            let operatorToken: Token = this.next_useful;
-            let right: Expression = this.parse_binary_expr(unaryIndex);
+            let operatorToken: Token = this.nextUseful;
+            let right: Expression = this.parseBinaryExpr(unaryIndex);
             left = new UnaryExpression(operatorToken, right);
         } else {
-            left = this.parse_literal();
+            left = this.parseLiteral();
         }
 
         while (true) {
@@ -373,26 +373,26 @@ export class Parser {
                 break;
             }
 
-            let operatorToken: Token = this.next_useful;
-            let right: Expression = this.parse_binary_expr(index);
+            let operatorToken: Token = this.nextUseful;
+            let right: Expression = this.parseBinaryExpr(index);
             left = new BinaryExpression(left, operatorToken, right);
         }
 
         return left;
     }
 
-    private parse_literal(): Expression {
+    private parseLiteral(): Expression {
         if (this.current.type == TokenType.DOLLAR) {
-            const dollar: Token = this.match_useful(TokenType.DOLLAR);
-            const name: Token = this.match_useful(TokenType.IDENTIFIER);
+            const dollar: Token = this.matchUseful(TokenType.DOLLAR);
+            const name: Token = this.matchUseful(TokenType.IDENTIFIER);
             return new VariableAccessExpression(dollar, name);
         }
 
-        const token: Token = this.match_useful(TokenType.INT, TokenType.FLOAT, TokenType.STRING);
+        const token: Token = this.matchUseful(TokenType.INT, TokenType.FLOAT, TokenType.STRING);
         return new LiteralExpression(token);
     }
 
-    private parse_path_expr(): Expression {
+    private parsePathExpression(): Expression {
         const parts: Token[] = [];
 
         if (this.current.type == TokenType.IDENTIFIER && this.current.text.length == 1 && this.peek(1).type == TokenType.COLON && (this.peek(2).type == TokenType.SLASH || this.peek(2).type == TokenType.BACKSLASH)) {
