@@ -26,6 +26,7 @@ export enum TokenType {
     BACKSLASH = "BACKSLASH",
     DOT = "DOT",
     COLON = "COLON",
+    DOLLAR = "DOLLAR",
     SEMICOLON = "SEMICOLON",
     STRING = "STRING",
     INT = "INT",
@@ -198,6 +199,12 @@ export class Lexer {
                 text = "+";
                 value = null;
                 type = TokenType.PLUS;
+                this.pos++;
+                break;
+            case "$":
+                text = "$";
+                value = null;
+                type = TokenType.DOLLAR;
                 this.pos++;
                 break;
             case "-":

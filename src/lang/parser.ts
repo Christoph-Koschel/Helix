@@ -1,12 +1,14 @@
-import {Diagnostic, Lexer, span_from, Token, TokenType} from "./lexer";
+import {Diagnostic, Lexer, Span, span_from, Token, TokenType} from "./lexer";
 
 export enum SyntaxType {
     PATH_EXPRESSION = "PATH_EXPRESSION",
     BINARY_EXPRESSION = "BINARY_EXPRESSION",
     UNARY_EXPRESSION = "UNARY_EXPRESSION",
     LITERAL_EXPRESSION = "LITERAL_EXPRESSION",
+    VARIABLE_ACCESS_EXPRESSION = "VARIABLE_ACCESS_EXPRESSION",
 
-    VARIABLE_DECLARATION_STATEMENT = "VARIABLE_DECLARATION_STATEMENT"
+    VARIABLE_DECLARATION_STATEMENT = "VARIABLE_DECLARATION_STATEMENT",
+    CALL_STATEMENT = "CALL_STATEMENT"
 }
 
 export abstract class Statement {
@@ -14,8 +16,9 @@ export abstract class Statement {
 
     protected constructor(type: SyntaxType) {
         this.type = type;
-
     }
+
+    public abstract get span(): Span;
 }
 
 export class VariableDeclarationStatement extends Statement {
@@ -31,6 +34,25 @@ export class VariableDeclarationStatement extends Statement {
         this.name = name;
         this.value = value;
     }
+
+    get span(): Span {
+        return span_from(this.typeToken.span.start, this.value.span.end);
+    }
+}
+
+export class CallStatement extends Statement {
+    public caller: Expression;
+    public parameters: Expression[];
+
+    public constructor(caller: Expression, parameters: Expression[]) {
+        super(SyntaxType.CALL_STATEMENT);
+        this.caller = caller;
+        this.parameters = parameters;
+    }
+
+    get span(): Span {
+        return span_from(this.caller.span.start, this.parameters.length != 0 ? this.parameters[this.parameters.length - 1].span.end : this.caller.span.end);
+    }
 }
 
 export abstract class Expression {
@@ -38,8 +60,9 @@ export abstract class Expression {
 
     protected constructor(type: SyntaxType) {
         this.type = type;
-
     }
+
+    public abstract get span(): Span;
 }
 
 export class PathExpression extends Expression {
@@ -48,6 +71,10 @@ export class PathExpression extends Expression {
     public constructor(parts: Token[]) {
         super(SyntaxType.PATH_EXPRESSION);
         this.parts = parts;
+    }
+
+    get span(): Span {
+        return span_from(this.parts[0].span.start, this.parts[this.parts.length - 1].span.end);
     }
 }
 
@@ -62,6 +89,10 @@ export class BinaryExpression extends Expression {
         this.operator = operator;
         this.right = right;
     }
+
+    get span(): Span {
+        return span_from(this.left.span.start, this.right.span.end);
+    }
 }
 
 export class UnaryExpression extends Expression {
@@ -73,6 +104,10 @@ export class UnaryExpression extends Expression {
         this.operator = operator;
         this.right = right;
     }
+
+    get span(): Span {
+        return span_from(this.operator.span.start, this.right.span.end);
+    }
 }
 
 export class LiteralExpression extends Expression {
@@ -81,6 +116,25 @@ export class LiteralExpression extends Expression {
     public constructor(token: Token) {
         super(SyntaxType.LITERAL_EXPRESSION);
         this.token = token;
+    }
+
+    get span(): Span {
+        return this.token.span;
+    }
+}
+
+export class VariableAccessExpression extends Expression {
+    public dollar: Token;
+    public name: Token;
+
+    public constructor(dollar: Token, name: Token) {
+        super(SyntaxType.VARIABLE_ACCESS_EXPRESSION);
+        this.dollar = dollar;
+        this.name = name;
+    }
+
+    get span(): Span {
+        return span_from(this.dollar.span.start, this.name.span.end);
     }
 }
 
@@ -275,13 +329,22 @@ export class Parser {
                 this.pos = reset;
             } else {
                 const equals: Token = this.next_useful;
-                const value: Expression = this.parse_expr();
+                const value: Expression = this.parse_expression();
                 return new VariableDeclarationStatement(type, name, equals, value);
             }
         }
+
+        const caller: Expression = this.parse_expression();
+        this.skip_whitespace();
+        const parameters: Expression[] = [];
+        while (this.current.type != TokenType.NEWLINE && this.current.type != TokenType.SEMICOLON && this.current.type != TokenType.EOF) {
+            parameters.push(this.parse_expression());
+            this.skip_whitespace();
+        }
+        return new CallStatement(caller, parameters);
     }
 
-    private parse_expr(): Expression {
+    private parse_expression(): Expression {
         if (this.current.type == TokenType.DOT ||
             this.current.type == TokenType.IDENTIFIER && this.current.text.length == 1 && this.peek(1).type == TokenType.COLON && (this.peek(2).type == TokenType.SLASH || this.peek(2).type == TokenType.BACKSLASH) ||
             this.current.type == TokenType.SLASH ||
@@ -319,6 +382,12 @@ export class Parser {
     }
 
     private parse_literal(): Expression {
+        if (this.current.type == TokenType.DOLLAR) {
+            const dollar: Token = this.match_useful(TokenType.DOLLAR);
+            const name: Token = this.match_useful(TokenType.IDENTIFIER);
+            return new VariableAccessExpression(dollar, name);
+        }
+
         const token: Token = this.match_useful(TokenType.INT, TokenType.FLOAT, TokenType.STRING);
         return new LiteralExpression(token);
     }
