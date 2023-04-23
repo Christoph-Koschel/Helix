@@ -1,8 +1,9 @@
 import {Color, print, println, readline} from "./stdio";
 import {Platform} from "./platform";
 import * as path from "path";
-import {Expression, Parser} from "../lang/parser";
 import {Diagnostic} from "../lang/lexer";
+import {Binder, BoundProgram} from "../lang/binder";
+import {Interpreter} from "../lang/interpreter";
 
 if (process.argv.length > 2) {
     // TODO Execute script files given as a parameter
@@ -47,25 +48,22 @@ async function loop() {
         } else {
             print("$ ");
         }
-        const line = await readline();
-        const parser: Parser = new Parser("<stdin>", line);
-        parser.tokens.forEach(value => {
-            println(`${value.type} (${value.text.replace(/\n/g, "\\n").replace(/\r/g, "\\r").replace(/\t/g, "\\t")})`);
-        });
-        if (parser.diagnostics.length != 0) {
-            print_diagnostics(parser.diagnostics);
-            continue;
-        }
-        const exprs: Expression[] = parser.parse();
-        if (parser.diagnostics.length != 0) {
-            print_diagnostics(parser.diagnostics);
+        const line: string = await readline();
+        const binder: Binder = Binder.bindProgram("<stdin>", line);
+        if (binder.diagnostics.length != 0) {
+            print_diagnostics(binder.diagnostics);
             continue;
         }
 
-        exprs.forEach(value => {
-            println(JSON.stringify(value, null, 4));
-        });
+        const program: BoundProgram = binder.program;
+        if (binder.diagnostics.length != 0) {
+            print_diagnostics(binder.diagnostics);
+            continue;
+        }
 
+        println(JSON.stringify(program.statements, null, 4));
+        const interpreter: Interpreter = new Interpreter(platform);
+        interpreter.interpret(program);
     }
 }
 
