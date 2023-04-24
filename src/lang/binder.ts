@@ -457,6 +457,10 @@ export class Binder {
                 path += part.text;
             } else if (part.type == TokenType.DOT) {
                 path += ".";
+            } else if (part.type == TokenType.COLON) {
+                path += ":";
+            } else {
+                throw `Undefined token '${part.text}'`;
             }
         }
 
