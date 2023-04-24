@@ -1,5 +1,5 @@
 import {Color, print, println, readline} from "./stdio";
-import {Platform} from "./platform";
+import {FunctionContainer, Platform} from "./platform";
 import * as path from "path";
 import {Diagnostic} from "../lang/lexer";
 import {Binder, BoundProgram} from "../lang/binder";
@@ -14,8 +14,8 @@ if (process.argv.length > 2) {
 function translate_path(platform: Platform, str: string): string {
     str = path.join(str);
     const prefix = path.join(platform.homedir);
-    if (str.startsWith(prefix)) {
-        return "~" + str.substring(prefix.length);
+    if (str.toLowerCase().startsWith(prefix.toLowerCase())) {
+        return "~" + str.substring(prefix.length).replace(/\\/g, "/");
     }
 
     str = str.replace(/\\/g, "/");
@@ -39,6 +39,8 @@ async function loop() {
         process.exit(1);
     }
 
+    const container: FunctionContainer = platform.loadContainer();
+
     while (1) {
         print(platform.username + "@" + platform.hostname, Color.GREEN);
         print(":");
@@ -61,9 +63,9 @@ async function loop() {
             continue;
         }
 
-        println(JSON.stringify(program.statements, null, 4));
+        // println(JSON.stringify(program.statements, null, 4));
         const interpreter: Interpreter = new Interpreter(platform);
-        interpreter.interpret(program);
+        interpreter.interpret(program, container);
     }
 }
 

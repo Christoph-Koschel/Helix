@@ -1,6 +1,7 @@
 import {
     BoundBinaryExpression,
-    BoundCallStatement, BoundCastExpression,
+    BoundCallStatement,
+    BoundCastExpression,
     BoundExpression,
     BoundLiteralExpression,
     BoundProgram,
@@ -11,25 +12,30 @@ import {
     BoundVariableDeclarationStatement,
     Operation
 } from "./binder";
-import {Platform} from "../core/platform";
-import {println} from "../core/stdio";
+import {FunctionContainer, Platform} from "../core/platform";
+import {Color, println} from "../core/stdio";
+import * as path from "path";
 
 export type Scope = {
     variables: { [name: string]: any }
+    functions: { [name: string]: BoundStatement[] }
 }
 
 export class Interpreter {
     private scope: Scope[]
     private platform: Platform;
+    private nativeFunctions: FunctionContainer;
 
     public constructor(platform: Platform) {
         this.scope = [];
         this.platform = platform;
     }
 
-    public interpret(program: BoundProgram): void {
+    public interpret(program: BoundProgram, nativeFunctions: FunctionContainer): void {
+        this.nativeFunctions = nativeFunctions;
         this.scope.push({
-            variables: {}
+            variables: {},
+            functions: {}
         });
 
         this.interpretStatements(program.statements);
@@ -63,11 +69,14 @@ export class Interpreter {
             parameters.push(this.interpretExpression(parameter));
         });
 
-        if (caller == "echo") {
-            parameters.forEach(value => {
-                println(value.toString());
-            });
+        if (path.basename(caller) == caller) {
+            if (this.nativeFunctions.has(caller)) {
+                this.nativeFunctions.exec(caller, parameters);
+                return;
+            }
         }
+
+        println(`RuntimeError: '${caller}' is not a function, script or path to an executable`, Color.RED);
     }
 
     private interpretExpression(expression: BoundExpression): any {
